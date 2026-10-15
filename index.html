@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#ede7d8" />
+  <link rel="icon" href="data:," />
+  <title>Painter's Color Mixer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,650&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: light dark;
+      --canvas: #ede7d8;
+      --canvas-deep: #e1d8c3;
+      --paper: #f8f4e9;
+      --paper-strong: #fffdf7;
+      --ink: #2d2a25;
+      --muted: #6f675b;
+      --line: #c8bda7;
+      --line-strong: #9c907a;
+      --shadow: rgba(68, 55, 37, .13);
+      --accent: #99613d;
+      --accent-ink: #fff9ef;
+      --focus: #176a75;
+      --well: #d8cfbb;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --canvas: #201f1c;
+        --canvas-deep: #191816;
+        --paper: #2b2924;
+        --paper-strong: #333029;
+        --ink: #f1eadc;
+        --muted: #bdb3a1;
+        --line: #514b40;
+        --line-strong: #746b5b;
+        --shadow: rgba(0, 0, 0, .28);
+        --accent: #c88b5f;
+        --accent-ink: #22170f;
+        --focus: #72c1c9;
+        --well: #3d3931;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 320px; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 10%, color-mix(in srgb, var(--paper) 52%, transparent) 0 1px, transparent 1.5px) 0 0 / 18px 18px,
+        linear-gradient(135deg, var(--canvas), var(--canvas-deep));
+      font: 16px/1.45 "Source Sans 3", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select { font: inherit; }
+    button, select, input[type="color"], input[type="range"] { touch-action: manipulation; }
+    button { color: inherit; }
+    button:focus-visible, select:focus-visible, input:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--focus) 50%, transparent);
+      outline-offset: 3px;
+    }
+
+    .page {
+      width: min(1180px, 100%);
+      margin: 0 auto;
+      padding: clamp(22px, 4vw, 52px) clamp(16px, 4vw, 46px) calc(42px + env(safe-area-inset-bottom));
+    }
+
+    .intro {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 28px;
+      margin-bottom: 22px;
+    }
+    h1 {
+      max-width: 650px;
+      margin: 0;
+      font-family: "Literata", Georgia, serif;
+      font-size: clamp(2rem, 5.6vw, 4.35rem);
+      line-height: .98;
+      letter-spacing: -.045em;
+      font-weight: 650;
+    }
+    .intro p {
+      max-width: 330px;
+      margin: 0 0 4px;
+      color: var(--muted);
+      font-size: 1.02rem;
+    }
+
+    .studio-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .9fr) minmax(420px, 1.1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .panel {
+      background: color-mix(in srgb, var(--paper) 96%, transparent);
+      border: 1px solid var(--line);
+      box-shadow: 0 14px 42px var(--shadow);
+    }
+    .preview-panel {
+      padding: clamp(15px, 2.6vw, 24px);
+      border-radius: 32px 16px 28px 18px;
+      position: sticky;
+      top: 16px;
+    }
+    .panel-label, .section-heading {
+      font-size: .78rem;
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .preview-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .hex-copy {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--paper-strong);
+      cursor: pointer;
+      font-weight: 700;
+      letter-spacing: .035em;
+    }
+    .hex-copy svg { width: 16px; height: 16px; }
+    .paint-swatch {
+      position: relative;
+      min-height: 360px;
+      border-radius: 20px 34px 18px 30px;
+      overflow: hidden;
+      background: #834d48;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), inset 0 -28px 50px rgba(0,0,0,.10);
+      transition: background-color 180ms ease;
+    }
+    .paint-swatch::before,
+    .paint-swatch::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .paint-swatch::before {
+      opacity: .22;
+      background:
+        repeating-linear-gradient(101deg, rgba(255,255,255,.18) 0 1px, transparent 1px 9px),
+        repeating-linear-gradient(82deg, transparent 0 15px, rgba(0,0,0,.09) 16px 17px, transparent 18px 29px);
+      mix-blend-mode: soft-light;
+    }
+    .paint-swatch::after {
+      background: radial-gradient(ellipse at 34% 24%, rgba(255,255,255,.21), transparent 48%);
+    }
+    .result-note {
+      display: flex;
+      gap: 9px;
+      align-items: flex-start;
+      margin: 13px 2px 0;
+      color: var(--muted);
+      font-size: .86rem;
+    }
+    .result-note svg { flex: 0 0 auto; width: 17px; margin-top: 2px; }
+
+    .controls-panel {
+      padding: clamp(18px, 3vw, 30px);
+      border-radius: 18px 32px 20px 28px;
+    }
+    .controls-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 19px;
+    }
+    .controls-head h2 {
+      margin: 0;
+      font: 650 clamp(1.35rem, 3vw, 1.8rem)/1.1 "Literata", Georgia, serif;
+      letter-spacing: -.02em;
+    }
+    .third-toggle {
+      border: 1px solid var(--line-strong);
+      background: transparent;
+      min-height: 44px;
+      padding: 8px 13px;
+      border-radius: 13px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .color-wells { display: grid; gap: 10px; }
+    .color-well {
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr) 54px;
+      grid-template-areas: "pick select percent" "pick slider percent";
+      gap: 7px 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid transparent;
+      border-radius: 16px 9px 14px 11px;
+      background: color-mix(in srgb, var(--well) 56%, transparent);
+      cursor: pointer;
+      transition: border-color 140ms ease, background 140ms ease;
+    }
+    .color-well.active {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 11%, var(--paper));
+    }
+    .color-well[hidden] { display: none; }
+    .picker-shell {
+      grid-area: pick;
+      width: 54px;
+      height: 54px;
+      padding: 4px;
+      border-radius: 50%;
+      background: var(--paper-strong);
+      border: 1px solid var(--line);
+      box-shadow: 0 3px 10px var(--shadow);
+      overflow: hidden;
+    }
+    input[type="color"] {
+      display: block;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      border: 0;
+      padding: 0;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+    input[type="color"]::-moz-color-swatch { border: 0; border-radius: 50%; }
+    .pigment-select {
+      grid-area: select;
+      width: 100%;
+      height: 34px;
+      padding: 0 31px 0 0;
+      border: 0;
+      color: var(--ink);
+      background: transparent;
+      font-weight: 700;
+      cursor: pointer;
+      text-overflow: ellipsis;
+    }
+    .ratio {
+      grid-area: slider;
+      width: 100%;
+      height: 24px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .percent {
+      grid-area: percent;
+      justify-self: end;
+      width: 49px;
+      text-align: center;
+      font-size: .9rem;
+      font-weight: 700;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tray-section, .palette-section, .history-section {
+      margin-top: 24px;
+      padding-top: 21px;
+      border-top: 1px solid var(--line);
+    }
+    .tray-header, .history-header, .palette-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .hint { color: var(--muted); font-size: .82rem; }
+    .mixing-tray {
+      height: 76px;
+      padding: 8px;
+      border-radius: 50px 34px 45px 28px;
+      background: color-mix(in srgb, var(--well) 70%, transparent);
+      box-shadow: inset 0 2px 6px rgba(0,0,0,.11);
+    }
+    .blend {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #f7f5ed, #834d48);
+      box-shadow: inset 0 1px 1px rgba(255,255,255,.32);
+    }
+
+    .palette {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .pigment {
+      position: relative;
+      aspect-ratio: 1;
+      min-width: 0;
+      border: 1px solid color-mix(in srgb, var(--line-strong) 70%, transparent);
+      border-radius: 50% 46% 48% 43%;
+      background: var(--pigment);
+      cursor: pointer;
+      box-shadow: inset 0 0 0 3px rgba(255,255,255,.16), 0 2px 5px var(--shadow);
+    }
+    .pigment::after {
+      content: attr(data-short);
+      position: absolute;
+      left: 50%;
+      bottom: -21px;
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: .68rem;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+      z-index: 2;
+    }
+    .pigment:hover::after, .pigment:focus-visible::after { opacity: 1; }
+    .palette-note { margin: 11px 0 0; color: var(--muted); font-size: .84rem; }
+
+    .history-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .session-label { color: var(--muted); font-size: .75rem; }
+    .add-recent {
+      min-height: 42px;
+      border: 0;
+      border-radius: 12px 8px 12px 9px;
+      padding: 8px 13px;
+      color: var(--accent-ink);
+      background: var(--accent);
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .history-list {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .history-empty {
+      grid-column: 1 / -1;
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+    .history-item {
+      min-width: 0;
+      padding: 0;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      overflow: hidden;
+      background: var(--paper-strong);
+      cursor: pointer;
+      text-align: left;
+    }
+    .history-color { display: block; height: 44px; background: var(--history-color); }
+    .history-hex {
+      display: block;
+      padding: 6px 7px;
+      font-size: .72rem;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: .03em;
+    }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(20px + env(safe-area-inset-bottom));
+      z-index: 10;
+      transform: translate(-50%, 18px);
+      padding: 10px 14px;
+      border-radius: 12px;
+      color: var(--paper-strong);
+      background: var(--ink);
+      box-shadow: 0 8px 28px var(--shadow);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease, transform 160ms ease;
+      font-weight: 600;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+    @media (max-width: 820px) {
+      .intro { display: block; }
+      .intro p { margin-top: 12px; max-width: 560px; }
+      .studio-grid { grid-template-columns: 1fr; }
+      .preview-panel { position: static; }
+      .paint-swatch { min-height: min(55vw, 330px); }
+    }
+
+    @media (max-width: 520px) {
+      .page { padding-inline: 12px; }
+      .intro { padding-inline: 5px; }
+      .intro p { font-size: .94rem; }
+      .panel { box-shadow: 0 9px 28px var(--shadow); }
+      .preview-panel { padding: 12px; border-radius: 24px 13px 22px 14px; }
+      .paint-swatch { min-height: 44vw; border-radius: 15px 24px 14px 22px; }
+      .controls-panel { padding: 17px 13px 20px; }
+      .controls-head { align-items: flex-start; }
+      .third-toggle { min-width: 88px; }
+      .color-well { grid-template-columns: 48px minmax(0, 1fr) 48px; padding: 10px; gap: 5px 9px; }
+      .picker-shell { width: 48px; height: 48px; }
+      .palette { grid-template-columns: repeat(6, 1fr); gap: 6px; }
+      .pigment::after { display: none; }
+      .history-header { align-items: center; }
+      .session-label { display: none; }
+      .history-list { grid-template-columns: repeat(4, 1fr); }
+      .mixing-tray { height: 65px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="intro">
+      <h1>Find the color before the first brushstroke.</h1>
+      <p>Choose two or three pigments, adjust their parts, and use the preview as a guide at your real palette.</p>
+    </header>
+
+    <div class="studio-grid">
+      <section class="panel preview-panel" aria-labelledby="preview-label">
+        <div class="preview-top">
+          <span class="panel-label" id="preview-label">Mixed color</span>
+          <button class="hex-copy" id="copyHex" type="button" aria-label="Copy mixed color hex code">
+            <span id="hexCode">#834D48</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
+          </button>
+        </div>
+        <div class="paint-swatch" id="resultSwatch" role="img" aria-label="Preview of the mixed paint color"></div>
+        <div class="result-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+          <span>Screen color is a close guide. Real pigments vary by brand, opacity, and light.</span>
+        </div>
+      </section>
+
+      <section class="panel controls-panel" aria-labelledby="mix-heading">
+        <div class="controls-head">
+          <h2 id="mix-heading">On the palette</h2>
+          <button class="third-toggle" id="toggleThird" type="button" aria-expanded="false">+ Third color</button>
+        </div>
+
+        <div class="color-wells" id="colorWells">
+          <div class="color-well active" data-index="0" tabindex="0" role="group" aria-label="Color one, active color well">
+            <div class="picker-shell"><input type="color" class="color-picker" value="#F7F5ED" aria-label="Choose color one" /></div>
+            <select class="pigment-select" aria-label="Preset for color one"></select>
+            <input type="range" class="ratio" min="1" max="100" value="50" aria-label="Parts of color one" />
+            <output class="percent">50%</output>
+          </div>
+          <div class="color-well" data-index="1" tabindex="0" role="group" aria-label="Color two">
+            <div class="picker-shell"><input type="color" class="color-picker" value="#D53B2C" aria-label="Choose color two" /></div>
+            <select class="pigment-select" aria-label="Preset for color two"></select>
+            <input type="range" class="ratio" min="1" max="100" value="50" aria-label="Parts of color two" />
+            <output class="percent">50%</output>
+          </div>
+          <div class="color-well" data-index="2" tabindex="0" role="group" aria-label="Color three" hidden>
+            <div class="picker-shell"><input type="color" class="color-picker" value="#1F3D77" aria-label="Choose color three" /></div>
+            <select class="pigment-select" aria-label="Preset for color three"></select>
+            <input type="range" class="ratio" min="1" max="100" value="25" aria-label="Parts of color three" />
+            <output class="percent">20%</output>
+          </div>
+        </div>
+
+        <div class="tray-section">
+          <div class="tray-header">
+            <span class="section-heading">Mixing tray</span>
+            <span class="hint">Parts normalize automatically</span>
+          </div>
+          <div class="mixing-tray" aria-label="Gradient showing the chosen pigments blending together">
+            <div class="blend" id="blend"></div>
+          </div>
+        </div>
+
+        <div class="palette-section">
+          <div class="palette-header">
+            <span class="section-heading">Common pigments</span>
+            <span class="hint">Tap a color well, then a pigment</span>
+          </div>
+          <div class="palette" id="palette" aria-label="Common paint pigment palette"></div>
+          <p class="palette-note">Display swatches approximate common artist colors; use the picker for your own tube paint.</p>
+        </div>
+
+        <div class="history-section">
+          <div class="history-header">
+            <span class="section-heading">Recent mixes</span>
+            <div class="history-actions">
+              <span class="session-label">This session</span>
+              <button class="add-recent" id="addRecent" type="button">Add mix</button>
+            </div>
+          </div>
+          <div class="history-list" id="historyList">
+            <p class="history-empty">Your saved swatches will appear here.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var pigments = [
+        { name: "Titanium White", short: "White", hex: "#F7F5ED" },
+        { name: "Cadmium Yellow", short: "Cad Yellow", hex: "#F3C51C" },
+        { name: "Yellow Ochre", short: "Ochre", hex: "#C18A2E" },
+        { name: "Cadmium Red", short: "Cad Red", hex: "#D53B2C" },
+        { name: "Alizarin Crimson", short: "Crimson", hex: "#8D1D32" },
+        { name: "Ultramarine Blue", short: "Ultra Blue", hex: "#24459A" },
+        { name: "Cerulean Blue", short: "Cerulean", hex: "#2786A7" },
+        { name: "Viridian", short: "Viridian", hex: "#25705A" },
+        { name: "Sap Green", short: "Sap Green", hex: "#53682B" },
+        { name: "Burnt Sienna", short: "Sienna", hex: "#9C4E2F" },
+        { name: "Burnt Umber", short: "Umber", hex: "#5B3A29" },
+        { name: "Ivory Black", short: "Black", hex: "#242526" }
+      ];
+
+      var wells = Array.prototype.slice.call(document.querySelectorAll(".color-well"));
+      var resultSwatch = document.getElementById("resultSwatch");
+      var hexCode = document.getElementById("hexCode");
+      var blend = document.getElementById("blend");
+      var palette = document.getElementById("palette");
+      var historyList = document.getElementById("historyList");
+      var toggleThird = document.getElementById("toggleThird");
+      var addRecent = document.getElementById("addRecent");
+      var copyHex = document.getElementById("copyHex");
+      var toast = document.getElementById("toast");
+      var activeIndex = 0;
+      var thirdEnabled = false;
+      var history = [];
+      var toastTimer;
+
+      function sameHex(a, b) { return a.toLowerCase() === b.toLowerCase(); }
+
+      function populateSelects() {
+        wells.forEach(function (well, index) {
+          var select = well.querySelector(".pigment-select");
+          pigments.forEach(function (pigment) {
+            var option = document.createElement("option");
+            option.value = pigment.hex;
+            option.textContent = pigment.name;
+            select.appendChild(option);
+          });
+          var custom = document.createElement("option");
+          custom.value = "custom";
+          custom.textContent = "Custom color";
+          select.appendChild(custom);
+          select.value = index === 0 ? pigments[0].hex : (index === 1 ? pigments[3].hex : pigments[5].hex);
+        });
+      }
+
+      function buildPalette() {
+        pigments.forEach(function (pigment) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "pigment";
+          button.style.setProperty("--pigment", pigment.hex);
+          button.dataset.hex = pigment.hex;
+          button.dataset.short = pigment.short;
+          button.setAttribute("aria-label", "Use " + pigment.name + " in active color well");
+          button.title = pigment.name;
+          palette.appendChild(button);
+        });
+      }
+
+      function hexToRgb(hex) {
+        var clean = hex.replace("#", "");
+        return [parseInt(clean.slice(0, 2), 16), parseInt(clean.slice(2, 4), 16), parseInt(clean.slice(4, 6), 16)];
+      }
+
+      function rgbToHex(rgb) {
+        return "#" + rgb.map(function (value) {
+          return Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+        }).join("").toUpperCase();
+      }
+
+      // Weighted geometric mean treats display channels like reflectance,
+      // giving a more paint-like darkening than a plain RGB average.
+      function mixColors(colors, weights) {
+        var total = weights.reduce(function (sum, weight) { return sum + weight; }, 0);
+        var channels = [0, 1, 2].map(function (channel) {
+          var logSum = 0;
+          colors.forEach(function (hex, i) {
+            var reflectance = Math.max(hexToRgb(hex)[channel] / 255, 0.018);
+            logSum += (weights[i] / total) * Math.log(reflectance);
+          });
+          return Math.exp(logSum) * 255;
+        });
+        return rgbToHex(channels);
+      }
+
+      function visibleWells() { return wells.filter(function (well) { return !well.hidden; }); }
+
+      function currentState() {
+        return {
+          third: thirdEnabled,
+          colors: visibleWells().map(function (well) { return well.querySelector(".color-picker").value.toUpperCase(); }),
+          ratios: visibleWells().map(function (well) { return Number(well.querySelector(".ratio").value); })
+        };
+      }
+
+      function update() {
+        var activeWells = visibleWells();
+        var colors = activeWells.map(function (well) { return well.querySelector(".color-picker").value; });
+        var ratios = activeWells.map(function (well) { return Number(well.querySelector(".ratio").value); });
+        var total = ratios.reduce(function (sum, value) { return sum + value; }, 0);
+        var result = mixColors(colors, ratios);
+
+        activeWells.forEach(function (well, index) {
+          var percent = Math.round((ratios[index] / total) * 100);
+          well.querySelector(".percent").textContent = percent + "%";
+        });
+
+        resultSwatch.style.backgroundColor = result;
+        resultSwatch.setAttribute("aria-label", "Preview of mixed paint color " + result);
+        hexCode.textContent = result;
+
+        var stops;
+        if (colors.length === 2) {
+          var mixPosition = ratios[0] / total * 100;
+          stops = [colors[0] + " 0%", result + " " + mixPosition.toFixed(1) + "%", colors[1] + " 100%"];
+        } else {
+          var firstPosition = ratios[0] / total * 100;
+          var secondPosition = (ratios[0] + ratios[1]) / total * 100;
+          stops = [colors[0] + " 0%", result + " " + firstPosition.toFixed(1) + "%", colors[1] + " " + secondPosition.toFixed(1) + "%", colors[2] + " 100%"];
+        }
+        blend.style.background = "linear-gradient(90deg, " + stops.join(", ") + ")";
+      }
+
+      function selectPresetFor(well, hex) {
+        var select = well.querySelector(".pigment-select");
+        var preset = pigments.find(function (item) { return sameHex(item.hex, hex); });
+        select.value = preset ? preset.hex : "custom";
+      }
+
+      function setActive(index) {
+        activeIndex = index;
+        wells.forEach(function (well, i) {
+          well.classList.toggle("active", i === index);
+          well.setAttribute("aria-label", "Color " + (i + 1) + (i === index ? ", active color well" : ""));
+        });
+      }
+
+      function showToast(message) {
+        clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.add("show");
+        toastTimer = setTimeout(function () { toast.classList.remove("show"); }, 1700);
+      }
+
+      function renderHistory() {
+        historyList.innerHTML = "";
+        if (!history.length) {
+          var empty = document.createElement("p");
+          empty.className = "history-empty";
+          empty.textContent = "Your saved swatches will appear here.";
+          historyList.appendChild(empty);
+          return;
+        }
+        history.forEach(function (item, index) {
+          var result = mixColors(item.colors, item.ratios);
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "history-item";
+          button.setAttribute("aria-label", "Reload mix " + result);
+          button.dataset.index = String(index);
+          button.innerHTML = '<span class="history-color" style="--history-color:' + result + '"></span><span class="history-hex">' + result + '</span>';
+          historyList.appendChild(button);
+        });
+      }
+
+      function loadState(state) {
+        thirdEnabled = state.third;
+        wells[2].hidden = !thirdEnabled;
+        toggleThird.textContent = thirdEnabled ? "− Third color" : "+ Third color";
+        toggleThird.setAttribute("aria-expanded", String(thirdEnabled));
+        state.colors.forEach(function (color, index) {
+          wells[index].querySelector(".color-picker").value = color;
+          wells[index].querySelector(".ratio").value = state.ratios[index];
+          selectPresetFor(wells[index], color);
+        });
+        if (thirdEnabled) setActive(2);
+        else if (activeIndex === 2) setActive(0);
+        update();
+      }
+
+      populateSelects();
+      buildPalette();
+
+      wells.forEach(function (well, index) {
+        well.addEventListener("pointerdown", function () { setActive(index); });
+        well.addEventListener("focusin", function () { setActive(index); });
+        well.addEventListener("keydown", function (event) {
+          if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setActive(index); }
+        });
+        var picker = well.querySelector(".color-picker");
+        var select = well.querySelector(".pigment-select");
+        var ratio = well.querySelector(".ratio");
+        picker.addEventListener("input", function () { selectPresetFor(well, picker.value); update(); });
+        select.addEventListener("change", function () {
+          if (select.value !== "custom") picker.value = select.value;
+          update();
+        });
+        ratio.addEventListener("input", update);
+      });
+
+      palette.addEventListener("click", function (event) {
+        var button = event.target.closest(".pigment");
+        if (!button) return;
+        var well = wells[activeIndex];
+        well.querySelector(".color-picker").value = button.dataset.hex;
+        well.querySelector(".pigment-select").value = button.dataset.hex;
+        update();
+      });
+
+      toggleThird.addEventListener("click", function () {
+        thirdEnabled = !thirdEnabled;
+        wells[2].hidden = !thirdEnabled;
+        toggleThird.textContent = thirdEnabled ? "− Third color" : "+ Third color";
+        toggleThird.setAttribute("aria-expanded", String(thirdEnabled));
+        if (thirdEnabled) setActive(2);
+        else if (activeIndex === 2) setActive(0);
+        update();
+      });
+
+      addRecent.addEventListener("click", function () {
+        var state = currentState();
+        var signature = JSON.stringify(state);
+        history = history.filter(function (item) { return JSON.stringify(item) !== signature; });
+        history.unshift(state);
+        history = history.slice(0, 8);
+        renderHistory();
+        showToast("Mix added to this session");
+      });
+
+      historyList.addEventListener("click", function (event) {
+        var button = event.target.closest(".history-item");
+        if (!button) return;
+        loadState(history[Number(button.dataset.index)]);
+        showToast("Mix reloaded");
+      });
+
+      copyHex.addEventListener("click", function () {
+        var text = hexCode.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () { showToast(text + " copied"); }, function () { showToast("Copy unavailable"); });
+        } else {
+          showToast("Copy unavailable");
+        }
+      });
+
+      update();
+    })();
+  </script>
+</body>
+</html>
