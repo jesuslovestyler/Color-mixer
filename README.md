@@ -1,7 +1,8 @@
-# Painter's Color Mixer
+# Color Mixer
 
-Find the color before the first brushstroke — a little mixing playground for painters.
+A color mixer: blend colors, watch them combine, and read off the values (hex and RGB) — for artists, builders, and anyone mixing paint or pixels.
 
-Live page: https://jesuslovestyler.github.io/Color-mixer/
+**Live:** https://jesuslovestyler.github.io/Color-mixer/
+**Home:** https://jesuslovestyler.com/
 
-Made by Noki for Tyler. Public domain — share freely.
+One self-contained page: no account, no ads, nothing to buy. Released into the public domain (Unlicense — see LICENSE). Built by Tyler with Noki.
